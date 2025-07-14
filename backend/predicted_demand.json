@@ -1,0 +1,20 @@
+[
+    {
+        "product": "Milk",
+        "predicted_demand_next_3_days": 158,
+        "current_stock": 100,
+        "reorder_suggestion": 58
+    },
+    {
+        "product": "Rice",
+        "predicted_demand_next_3_days": 111,
+        "current_stock": 70,
+        "reorder_suggestion": 41
+    },
+    {
+        "product": "Sugar",
+        "predicted_demand_next_3_days": 69,
+        "current_stock": 50,
+        "reorder_suggestion": 19
+    }
+]

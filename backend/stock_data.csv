@@ -1,0 +1,5 @@
+product,category,stock,store,item,lag_7,lag_14
+Milk,Dairy,20,1,1,40,35
+Bread,Bakery,0,1,2,30,28
+Eggs,Poultry,15,1,3,45,42
+Rice,Grocery,50,1,4,38,36
