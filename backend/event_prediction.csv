@@ -1,0 +1,11 @@
+Date,Temperature,Demand,Event,Impact
+2024-01-15,25,150,Summer Festival,high
+2024-01-16,27,145,Normal Day,medium
+2024-01-17,24,160,School Reopening,high
+2024-01-18,23,120,Maintenance Work,low
+2024-01-19,28,170,Public Holiday,high
+2024-01-20,26,132,Normal Day,medium
+2024-01-21,22,115,Rainy Day,low
+2024-01-22,30,180,Concert Night,high
+2024-01-23,27,140,Normal Day,medium
+2024-01-24,25,123,Awareness Drive,low

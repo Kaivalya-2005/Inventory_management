@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   BarChart, 
   Bar, 
@@ -21,23 +21,64 @@ import {
   ShoppingCart,
   Clock
 } from 'lucide-react';
+import { dashboardAPI } from '../services/api';
+import toast from 'react-hot-toast';
+import BackendConnection from '../components/BackendConnection';
 
 const Dashboard = () => {
-  // Mock data for charts
-  const demandData = [
-    { day: 'Mon', predicted: 120, actual: 115 },
-    { day: 'Tue', predicted: 135, actual: 140 },
-    { day: 'Wed', predicted: 150, actual: 145 },
-    { day: 'Thu', predicted: 165, actual: 170 },
-    { day: 'Fri', predicted: 180, actual: 175 },
-    { day: 'Sat', predicted: 200, actual: 195 },
-    { day: 'Sun', predicted: 160, actual: 165 },
-  ];
+  const [dashboardData, setDashboardData] = useState({
+    metrics: {
+      totalStock: '12,450',
+      predictedOrders: '1,234',
+      outOfStock: '23',
+      currentTemp: '28°C'
+    },
+    stockSuggestions: [],
+    currentStock: [],
+    historicalAccuracy: []
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const data = await dashboardAPI.getDashboardData();
+        setDashboardData(data);
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+        toast.error('Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  // Process data for charts
+  const demandData = dashboardData.historicalAccuracy.slice(-7).map((item, index) => ({
+    day: `Day ${index + 1}`,
+    predicted: item.predicted,
+    actual: item.actual
+  }));
 
   const stockLevels = [
-    { name: 'In Stock', value: 65, color: '#22c55e' },
-    { name: 'Low Stock', value: 20, color: '#f59e0b' },
-    { name: 'Out of Stock', value: 15, color: '#ef4444' },
+    { 
+      name: 'In Stock', 
+      value: dashboardData.currentStock.filter(item => item.stock > 10).length,
+      color: '#22c55e' 
+    },
+    { 
+      name: 'Low Stock', 
+      value: dashboardData.currentStock.filter(item => item.stock <= 10 && item.stock > 0).length,
+      color: '#f59e0b' 
+    },
+    { 
+      name: 'Out of Stock', 
+      value: dashboardData.currentStock.filter(item => item.stock === 0).length,
+      color: '#ef4444' 
+    },
   ];
 
   const temperatureData = [
@@ -52,7 +93,7 @@ const Dashboard = () => {
   const metrics = [
     {
       title: 'Total Stock',
-      value: '12,450',
+      value: dashboardData.metrics.totalStock,
       change: '+5.2%',
       changeType: 'positive',
       icon: Package,
@@ -60,7 +101,7 @@ const Dashboard = () => {
     },
     {
       title: 'Predicted Orders',
-      value: '1,234',
+      value: dashboardData.metrics.predictedOrders,
       change: '+12.1%',
       changeType: 'positive',
       icon: TrendingUp,
@@ -68,7 +109,7 @@ const Dashboard = () => {
     },
     {
       title: 'Out of Stock',
-      value: '23',
+      value: dashboardData.metrics.outOfStock,
       change: '-8.3%',
       changeType: 'negative',
       icon: AlertTriangle,
@@ -76,7 +117,7 @@ const Dashboard = () => {
     },
     {
       title: 'Current Temp',
-      value: '28°C',
+      value: dashboardData.metrics.currentTemp,
       change: '+2.1°C',
       changeType: 'neutral',
       icon: Thermometer,
@@ -84,26 +125,12 @@ const Dashboard = () => {
     },
   ];
 
-  const recentAlerts = [
-    {
-      id: 1,
-      type: 'warning',
-      message: 'Product "Organic Bananas" is running low on stock',
-      time: '2 minutes ago',
-    },
-    {
-      id: 2,
-      type: 'info',
-      message: 'Weather forecast predicts high demand for cold beverages',
-      time: '15 minutes ago',
-    },
-    {
-      id: 3,
-      type: 'success',
-      message: 'Auto-order placed for "Fresh Milk" - 500 units',
-      time: '1 hour ago',
-    },
-  ];
+  const recentAlerts = dashboardData.stockSuggestions.slice(0, 3).map((suggestion, index) => ({
+    id: index + 1,
+    type: suggestion.urgency === 'High' ? 'warning' : 'info',
+    message: `AI suggests ordering ${suggestion.action} for ${suggestion.product}`,
+    time: `${index + 1} hour${index > 0 ? 's' : ''} ago`,
+  }));
 
   return (
     <div className="space-y-6">
@@ -112,6 +139,9 @@ const Dashboard = () => {
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-gray-600">Overview of your inventory and predictions</p>
       </div>
+
+      {/* Backend Connection Test */}
+      <BackendConnection />
 
       {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

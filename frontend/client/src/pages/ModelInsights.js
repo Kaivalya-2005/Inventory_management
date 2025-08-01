@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   PieChart, 
   Pie, 
@@ -20,28 +20,97 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  Zap
+  Zap,
+  RefreshCw
 } from 'lucide-react';
+import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const ModelInsights = () => {
+  // State for real data
+  const [featureImportance, setFeatureImportance] = useState([]);
+  const [confidenceLevels, setConfidenceLevels] = useState([]);
+  const [modelPerformance, setModelPerformance] = useState([]);
+  const [recentDecisions, setRecentDecisions] = useState([]);
+  const [modelOverview, setModelOverview] = useState({});
+  
+  // Loading states
+  const [loading, setLoading] = useState({
+    featureImportance: true,
+    confidence: true,
+    performance: true,
+    decisions: true,
+    overview: true
+  });
+  
+  // Error states
+  const [errors, setErrors] = useState({});
 
+  // Fetch all model insights data
+  const fetchModelInsights = async () => {
+    try {
+      const [
+        featureRes,
+        confidenceRes,
+        performanceRes,
+        decisionsRes,
+        overviewRes
+      ] = await Promise.all([
+        axios.get('http://localhost:8000/model-insights/feature-importance'),
+        axios.get('http://localhost:8000/model-insights/confidence'),
+        axios.get('http://localhost:8000/model-insights/performance'),
+        axios.get('http://localhost:8000/model-insights/decisions'),
+        axios.get('http://localhost:8000/model-insights/overview')
+      ]);
 
-  // Mock feature importance data
-  const featureImportance = [
-    { feature: 'Temperature', importance: 35, impact: 'positive', description: 'Higher temperatures increase demand for cold beverages and frozen items' },
-    { feature: 'Historical Sales', importance: 28, impact: 'positive', description: 'Past sales patterns are strong predictors of future demand' },
-    { feature: 'Day of Week', importance: 18, impact: 'neutral', description: 'Weekend vs weekday patterns affect shopping behavior' },
-    { feature: 'Special Events', importance: 12, impact: 'positive', description: 'Festivals, holidays, and promotions significantly impact demand' },
-    { feature: 'Seasonal Trends', importance: 7, impact: 'neutral', description: 'Long-term seasonal patterns influence product preferences' }
-  ];
+      setFeatureImportance(featureRes.data.features || []);
+      setConfidenceLevels(confidenceRes.data.confidence || []);
+      setModelPerformance(performanceRes.data.metrics || []);
+      setRecentDecisions(decisionsRes.data.decisions || []);
+      setModelOverview(overviewRes.data || {});
 
-  const confidenceLevels = [
-    { level: 'High (90-100%)', count: 45, color: '#22c55e' },
-    { level: 'Medium (70-89%)', count: 32, color: '#f59e0b' },
-    { level: 'Low (50-69%)', count: 18, color: '#ef4444' },
-    { level: 'Very Low (<50%)', count: 5, color: '#dc2626' }
-  ];
+      // Clear errors
+      setErrors({});
+      
+      // Update loading states
+      setLoading({
+        featureImportance: false,
+        confidence: false,
+        performance: false,
+        decisions: false,
+        overview: false
+      });
 
+    } catch (error) {
+      console.error('Error fetching model insights:', error);
+      toast.error('Failed to load model insights data');
+      
+      // Set error states
+      setErrors({
+        featureImportance: 'Failed to load feature importance',
+        confidence: 'Failed to load confidence data',
+        performance: 'Failed to load performance metrics',
+        decisions: 'Failed to load recent decisions',
+        overview: 'Failed to load model overview'
+      });
+      
+      // Update loading states
+      setLoading({
+        featureImportance: false,
+        confidence: false,
+        performance: false,
+        decisions: false,
+        overview: false
+      });
+    }
+  };
+
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchModelInsights();
+  }, []);
+
+  // Mock data for decision factors (keeping this as it's not provided by backend)
   const decisionFactors = [
     {
       product: 'Organic Bananas',
@@ -67,44 +136,6 @@ const ModelInsights = () => {
     }
   ];
 
-  const modelPerformance = [
-    { metric: 'Overall Accuracy', value: 87, target: 90, status: 'warning' },
-    { metric: 'Temperature Correlation', value: 92, target: 85, status: 'success' },
-    { metric: 'Event Prediction', value: 78, target: 80, status: 'warning' },
-    { metric: 'Seasonal Accuracy', value: 94, target: 90, status: 'success' },
-    { metric: 'Real-time Updates', value: 96, target: 95, status: 'success' }
-  ];
-
-  const recentDecisions = [
-    {
-      id: 1,
-      product: 'Ice Cream',
-      decision: 'Increase stock by 40%',
-      confidence: 92,
-      factors: ['High temperature (32°C)', 'Weekend forecast', 'Previous hot day sales'],
-      timestamp: '2 hours ago',
-      status: 'implemented'
-    },
-    {
-      id: 2,
-      product: 'Bottled Water',
-      decision: 'Increase stock by 60%',
-      confidence: 89,
-      factors: ['Heat wave warning', 'Event weekend', 'Historical demand spike'],
-      timestamp: '4 hours ago',
-      status: 'pending'
-    },
-    {
-      id: 3,
-      product: 'Bread',
-      decision: 'Maintain current levels',
-      confidence: 85,
-      factors: ['Stable demand pattern', 'No special events', 'Normal temperature'],
-      timestamp: '6 hours ago',
-      status: 'implemented'
-    }
-  ];
-
   const getStatusColor = (status) => {
     switch (status) {
       case 'success': return 'text-success-600 bg-success-50';
@@ -126,9 +157,19 @@ const ModelInsights = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Model Insights</h1>
-        <p className="text-gray-600">Understanding how the AI model makes decisions and predictions</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Model Insights</h1>
+          <p className="text-gray-600">Understanding how the AI model makes decisions and predictions</p>
+        </div>
+        <button
+          onClick={fetchModelInsights}
+          className="btn-secondary flex items-center"
+          disabled={Object.values(loading).some(Boolean)}
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${Object.values(loading).some(Boolean) ? 'animate-spin' : ''}`} />
+          Refresh Data
+        </button>
       </div>
 
       {/* Model Overview */}
@@ -139,60 +180,84 @@ const ModelInsights = () => {
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900">AI Model Overview</h3>
-            <p className="text-gray-600">Machine learning model trained on historical data with 87% accuracy</p>
+            <p className="text-gray-600">
+              Machine learning model trained on historical data with {modelOverview.overall_accuracy || '87'}% accuracy
+            </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <div className="text-2xl font-bold text-primary-600">87%</div>
-            <div className="text-sm text-gray-600">Overall Accuracy</div>
+        {loading.overview ? (
+          <div className="text-center py-8">Loading model overview...</div>
+        ) : errors.overview ? (
+          <div className="text-center py-8 text-red-500">{errors.overview}</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center p-4 bg-gray-50 rounded-lg">
+              <div className="text-2xl font-bold text-primary-600">{modelOverview.overall_accuracy || '87'}%</div>
+              <div className="text-sm text-gray-600">Overall Accuracy</div>
+            </div>
+            <div className="text-center p-4 bg-gray-50 rounded-lg">
+              <div className="text-2xl font-bold text-success-600">{(modelOverview.data_points || 1200000).toLocaleString()}</div>
+              <div className="text-sm text-gray-600">Data Points</div>
+            </div>
+            <div className="text-center p-4 bg-gray-50 rounded-lg">
+              <div className="text-2xl font-bold text-warning-600">{modelOverview.key_features || 5}</div>
+              <div className="text-sm text-gray-600">Key Features</div>
+            </div>
           </div>
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <div className="text-2xl font-bold text-success-600">1.2M</div>
-            <div className="text-sm text-gray-600">Data Points</div>
-          </div>
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <div className="text-2xl font-bold text-warning-600">5</div>
-            <div className="text-sm text-gray-600">Key Features</div>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Feature Importance */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Feature Importance</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={featureImportance} layout="horizontal">
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" domain={[0, 100]} />
-              <YAxis dataKey="feature" type="category" width={100} />
-              <Tooltip />
-              <Bar dataKey="importance" fill="#3b82f6" />
-            </BarChart>
-          </ResponsiveContainer>
+          {loading.featureImportance ? (
+            <div className="text-center py-8">Loading feature importance...</div>
+          ) : errors.featureImportance ? (
+            <div className="text-center py-8 text-red-500">{errors.featureImportance}</div>
+          ) : featureImportance.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={featureImportance} layout="horizontal">
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" domain={[0, 100]} />
+                <YAxis dataKey="feature" type="category" width={100} />
+                <Tooltip />
+                <Bar dataKey="importance" fill="#3b82f6" />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="text-center py-8 text-gray-500">No feature importance data available</div>
+          )}
         </div>
 
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Confidence Distribution</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={confidenceLevels}
-                cx="50%"
-                cy="50%"
-                outerRadius={80}
-                dataKey="count"
-                label={({ level, count }) => `${level}: ${count}`}
-              >
-                {confidenceLevels.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+          {loading.confidence ? (
+            <div className="text-center py-8">Loading confidence data...</div>
+          ) : errors.confidence ? (
+            <div className="text-center py-8 text-red-500">{errors.confidence}</div>
+          ) : confidenceLevels.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={confidenceLevels}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  dataKey="count"
+                  label={({ level, count }) => `${level}: ${count}`}
+                >
+                  {confidenceLevels.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="text-center py-8 text-gray-500">No confidence data available</div>
+          )}
         </div>
       </div>
 
@@ -243,78 +308,94 @@ const ModelInsights = () => {
       {/* Model Performance Metrics */}
       <div className="card">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Model Performance Metrics</h3>
-        <div className="space-y-4">
-          {modelPerformance.map((metric, index) => {
-            const Icon = getStatusIcon(metric.status);
-            return (
-              <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <Icon className={`h-5 w-5 ${getStatusColor(metric.status).split(' ')[0]}`} />
-                  <span className="font-medium text-gray-900">{metric.metric}</span>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-gray-900">{metric.value}%</div>
-                    <div className="text-xs text-gray-500">Target: {metric.target}%</div>
+        {loading.performance ? (
+          <div className="text-center py-8">Loading performance metrics...</div>
+        ) : errors.performance ? (
+          <div className="text-center py-8 text-red-500">{errors.performance}</div>
+        ) : modelPerformance.length > 0 ? (
+          <div className="space-y-4">
+            {modelPerformance.map((metric, index) => {
+              const Icon = getStatusIcon(metric.status);
+              return (
+                <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <Icon className={`h-5 w-5 ${getStatusColor(metric.status).split(' ')[0]}`} />
+                    <span className="font-medium text-gray-900">{metric.metric}</span>
                   </div>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(metric.status)}`}>
-                    {metric.status.charAt(0).toUpperCase() + metric.status.slice(1)}
-                  </span>
+                  <div className="flex items-center space-x-4">
+                    <div className="text-right">
+                      <div className="text-lg font-bold text-gray-900">{metric.value}%</div>
+                      <div className="text-xs text-gray-500">Target: {metric.target}%</div>
+                    </div>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(metric.status)}`}>
+                      {metric.status.charAt(0).toUpperCase() + metric.status.slice(1)}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">No performance metrics available</div>
+        )}
       </div>
 
       {/* Recent Decisions */}
       <div className="card">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent AI Decisions</h3>
-        <div className="space-y-4">
-          {recentDecisions.map((decision) => (
-            <div key={decision.id} className="border border-gray-200 rounded-lg p-4">
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <h4 className="font-medium text-gray-900">{decision.product}</h4>
-                  <p className="text-sm text-gray-600">{decision.decision}</p>
-                </div>
-                <div className="text-right">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    decision.confidence >= 90 ? 'bg-success-100 text-success-800' :
-                    decision.confidence >= 80 ? 'bg-warning-100 text-warning-800' :
-                    'bg-danger-100 text-danger-800'
-                  }`}>
-                    {decision.confidence}% Confidence
-                  </span>
-                  <div className="text-xs text-gray-500 mt-1">{decision.timestamp}</div>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-gray-900">Key Factors:</div>
-                <div className="flex flex-wrap gap-2">
-                  {decision.factors.map((factor, index) => (
-                    <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-primary-100 text-primary-800">
-                      <Zap className="h-3 w-3 mr-1" />
-                      {factor}
+        {loading.decisions ? (
+          <div className="text-center py-8">Loading recent decisions...</div>
+        ) : errors.decisions ? (
+          <div className="text-center py-8 text-red-500">{errors.decisions}</div>
+        ) : recentDecisions.length > 0 ? (
+          <div className="space-y-4">
+            {recentDecisions.map((decision) => (
+              <div key={decision.id} className="border border-gray-200 rounded-lg p-4">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h4 className="font-medium text-gray-900">{decision.product}</h4>
+                    <p className="text-sm text-gray-600">{decision.decision}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      decision.confidence >= 90 ? 'bg-success-100 text-success-800' :
+                      decision.confidence >= 80 ? 'bg-warning-100 text-warning-800' :
+                      'bg-danger-100 text-danger-800'
+                    }`}>
+                      {decision.confidence}% Confidence
                     </span>
-                  ))}
+                    <div className="text-xs text-gray-500 mt-1">{decision.timestamp}</div>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-gray-900">Key Factors:</div>
+                  <div className="flex flex-wrap gap-2">
+                    {decision.factors.map((factor, index) => (
+                      <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-primary-100 text-primary-800">
+                        <Zap className="h-3 w-3 mr-1" />
+                        {factor}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="mt-3 flex items-center justify-between">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    decision.status === 'implemented' ? 'bg-success-100 text-success-800' : 'bg-warning-100 text-warning-800'
+                  }`}>
+                    {decision.status.charAt(0).toUpperCase() + decision.status.slice(1)}
+                  </span>
+                  <button className="text-sm text-primary-600 hover:text-primary-700">
+                    View Details
+                  </button>
                 </div>
               </div>
-              
-              <div className="mt-3 flex items-center justify-between">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  decision.status === 'implemented' ? 'bg-success-100 text-success-800' : 'bg-warning-100 text-warning-800'
-                }`}>
-                  {decision.status.charAt(0).toUpperCase() + decision.status.slice(1)}
-                </span>
-                <button className="text-sm text-primary-600 hover:text-primary-700">
-                  View Details
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">No recent decisions available</div>
+        )}
       </div>
 
       {/* Model Transparency */}
@@ -333,7 +414,7 @@ const ModelInsights = () => {
               <Target className="h-5 w-5 text-success-600 mt-0.5" />
               <div>
                 <h4 className="font-medium text-gray-900">Confidence Levels</h4>
-                                 <p className="text-sm text-gray-600">High confidence predictions (&gt;90%) are based on strong patterns, while lower confidence indicates uncertainty.</p>
+                <p className="text-sm text-gray-600">High confidence predictions (&gt;90%) are based on strong patterns, while lower confidence indicates uncertainty.</p>
               </div>
             </div>
           </div>

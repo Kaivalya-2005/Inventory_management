@@ -14,6 +14,8 @@ import {
   Snowflake
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import axios from 'axios';
+import Papa from 'papaparse';
 
 const ModelFactors = () => {
   const [temperature, setTemperature] = useState(28);
@@ -31,6 +33,28 @@ const ModelFactors = () => {
     humidity: 65,
     windSpeed: 12
   });
+  const [city, setCity] = useState('New York');
+  const [weather, setWeather] = useState(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [weatherError, setWeatherError] = useState(null);
+  const [importedData, setImportedData] = useState([]);
+
+  // Fetch weather data when city changes
+  React.useEffect(() => {
+    const fetchWeather = async () => {
+      setWeatherLoading(true);
+      setWeatherError(null);
+      try {
+        const res = await axios.get(`/api/weather?city=${encodeURIComponent(city)}`);
+        setWeather(res.data);
+      } catch (err) {
+        setWeatherError('Failed to fetch weather data');
+      } finally {
+        setWeatherLoading(false);
+      }
+    };
+    fetchWeather();
+  }, [city]);
 
   const weatherConditions = [
     { name: 'sunny', icon: Sun, color: 'text-yellow-500' },
@@ -66,7 +90,17 @@ const ModelFactors = () => {
   const handleUploadData = (event) => {
     const file = event.target.files[0];
     if (file) {
-      toast.success(`File "${file.name}" uploaded successfully!`);
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: function(results) {
+          setImportedData(results.data);
+          toast.success(`File "${file.name}" imported successfully!`);
+        },
+        error: function(err) {
+          toast.error('Failed to parse CSV: ' + err.message);
+        }
+      });
     }
   };
 
@@ -351,6 +385,35 @@ const ModelFactors = () => {
               </button>
             </div>
           </div>
+          {/* Imported Data Preview */}
+          {importedData.length > 0 && (
+            <div className="mt-4">
+              <h4 className="text-md font-medium text-gray-900 mb-2">Imported Data Preview</h4>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr>
+                      {Object.keys(importedData[0]).map((key) => (
+                        <th key={key} className="px-2 py-1 border-b">{key}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {importedData.slice(0, 5).map((row, idx) => (
+                      <tr key={idx}>
+                        {Object.values(row).map((val, i) => (
+                          <td key={i} className="px-2 py-1 border-b">{val}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="text-xs text-gray-500 mt-1">
+                  Showing first 5 rows{importedData.length > 5 ? ` of ${importedData.length}` : ''}
+                </div>
+              </div>
+            </div>
+          )}
           
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex">
@@ -372,6 +435,16 @@ const ModelFactors = () => {
       {/* API Integrations */}
       <div className="card">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">API Integrations</h3>
+        <div className="mb-4 flex items-center space-x-4">
+          <label className="block text-sm font-medium text-gray-700">City:</label>
+          <input
+            type="text"
+            value={city}
+            onChange={e => setCity(e.target.value)}
+            className="input-field w-48"
+            placeholder="Enter city name"
+          />
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="p-4 border border-gray-200 rounded-lg">
             <div className="flex items-center justify-between mb-2">
@@ -381,9 +454,21 @@ const ModelFactors = () => {
               </span>
             </div>
             <p className="text-sm text-gray-600 mb-3">Auto-updates temperature and weather conditions</p>
-            <button className="btn-secondary text-sm">Configure</button>
+            {weatherLoading && <div>Loading weather...</div>}
+            {weatherError && <div className="text-red-500">{weatherError}</div>}
+            {weather && (
+              <div className="space-y-1">
+                <div><strong>Temperature:</strong> {weather.main.temp}°C</div>
+                <div><strong>Condition:</strong> {weather.weather[0].description}</div>
+                <div><strong>Humidity:</strong> {weather.main.humidity}%</div>
+                <div><strong>Wind Speed:</strong> {weather.wind.speed} m/s</div>
+                <div><strong>Location:</strong> {weather.name}</div>
+              </div>
+            )}
+            <button className="btn-secondary text-sm mt-3" onClick={() => setCity(city)}>
+              Refresh
+            </button>
           </div>
-          
           <div className="p-4 border border-gray-200 rounded-lg">
             <div className="flex items-center justify-between mb-2">
               <h4 className="font-medium text-gray-900">ERP System</h4>

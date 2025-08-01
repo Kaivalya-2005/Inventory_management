@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, 
   Check, 
@@ -9,75 +9,71 @@ import {
   Package
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { inventoryAPI } from '../services/api';
 
 const StockSuggestions = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedUrgency, setSelectedUrgency] = useState('all');
+  const [suggestions, setSuggestions] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data for stock suggestions
-  const suggestions = [
-    {
-      id: 1,
-      productName: 'Organic Bananas',
-      category: 'Fruits',
-      suggestedQuantity: 500,
-      confidenceLevel: 95,
-      factors: ['High temperature', 'Weekend demand', 'Previous sales trend'],
-      urgency: 'high',
-      currentStock: 50,
-      supplier: 'Fresh Farms Inc.',
-      price: '$0.89/lb'
-    },
-    {
-      id: 2,
-      productName: 'Fresh Milk',
-      category: 'Dairy',
-      suggestedQuantity: 200,
-      confidenceLevel: 88,
-      factors: ['Daily essential', 'Expiration date', 'Customer demand'],
-      urgency: 'medium',
-      currentStock: 75,
-      supplier: 'Dairy Co.',
-      price: '$3.99/gallon'
-    },
-    {
-      id: 3,
-      productName: 'Ice Cream',
-      category: 'Frozen',
-      suggestedQuantity: 150,
-      confidenceLevel: 92,
-      factors: ['High temperature', 'Summer season', 'Weekend sales'],
-      urgency: 'high',
-      currentStock: 25,
-      supplier: 'Frozen Delights',
-      price: '$4.99/pint'
-    },
-    {
-      id: 4,
-      productName: 'Bread',
-      category: 'Bakery',
-      suggestedQuantity: 300,
-      confidenceLevel: 85,
-      factors: ['Daily essential', 'Short shelf life', 'Breakfast demand'],
-      urgency: 'medium',
-      currentStock: 100,
-      supplier: 'Local Bakery',
-      price: '$2.49/loaf'
-    },
-    {
-      id: 5,
-      productName: 'Bottled Water',
-      category: 'Beverages',
-      suggestedQuantity: 400,
-      confidenceLevel: 90,
-      factors: ['High temperature', 'Hydration demand', 'Event weekend'],
-      urgency: 'high',
-      currentStock: 30,
-      supplier: 'Pure Water Co.',
-      price: '$0.99/bottle'
-    }
-  ];
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      try {
+        setLoading(true);
+        const data = await inventoryAPI.getStockSuggestions();
+        // Transform backend data to match frontend structure
+        const transformedSuggestions = (data.suggestions || []).map((suggestion, index) => ({
+          id: index + 1,
+          productName: suggestion.product,
+          category: suggestion.category,
+          suggestedQuantity: parseInt(suggestion.action.match(/\d+/)?.[0] || '0'),
+          confidenceLevel: suggestion.confidence * 100,
+          factors: suggestion.factors,
+          urgency: suggestion.urgency.toLowerCase(),
+          currentStock: Math.floor(Math.random() * 100), // Mock current stock
+          supplier: 'AI Supplier',
+          price: '$0.00' // Mock price
+        }));
+        setSuggestions(transformedSuggestions);
+      } catch (error) {
+        console.error('Failed to fetch stock suggestions:', error);
+        toast.error('Failed to load stock suggestions');
+        // Fallback to mock data if API fails
+        setSuggestions([
+          {
+            id: 1,
+            productName: 'Organic Bananas',
+            category: 'Fruits',
+            suggestedQuantity: 500,
+            confidenceLevel: 95,
+            factors: ['High temperature', 'Weekend demand', 'Previous sales trend'],
+            urgency: 'high',
+            currentStock: 50,
+            supplier: 'Fresh Farms Inc.',
+            price: '$0.89/lb'
+          },
+          {
+            id: 2,
+            productName: 'Fresh Milk',
+            category: 'Dairy',
+            suggestedQuantity: 200,
+            confidenceLevel: 88,
+            factors: ['Daily essential', 'Expiration date', 'Customer demand'],
+            urgency: 'medium',
+            currentStock: 75,
+            supplier: 'Dairy Co.',
+            price: '$3.99/gallon'
+          }
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSuggestions();
+  }, []);
 
   const categories = ['all', 'Fruits', 'Dairy', 'Frozen', 'Bakery', 'Beverages'];
   const urgencyLevels = ['all', 'high', 'medium', 'low'];
